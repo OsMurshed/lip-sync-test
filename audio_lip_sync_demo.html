@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio-to-Lip-Sync Demo - Ready Player Me</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+        
+        #container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+        
+        #controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 25px;
+            border-radius: 15px;
+            max-width: 420px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+        
+        .control-group {
+            margin: 20px 0;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #e0e0e0;
+            font-size: 14px;
+        }
+        
+        input[type="file"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px dashed rgba(76, 175, 80, 0.5);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        input[type="file"]:hover {
+            border-color: #4CAF50;
+            background: rgba(76, 175, 80, 0.1);
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            outline: none;
+            cursor: pointer;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            width: 20px;
+            height: 20px;
+            background: #4CAF50;
+            border-radius: 50%;
+            cursor: pointer;
+            -webkit-appearance: none;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+        
+        button {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            padding: 14px 20px;
+            margin: 8px 5px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            min-width: 140px;
+        }
+        
+        button:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+        }
+        
+        button:active:not(:disabled) {
+            transform: translateY(-1px);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            background: #666;
+        }
+        
+        .play-button {
+            background: linear-gradient(45deg, #2196F3, #1976D2);
+            font-size: 18px;
+            width: 100%;
+            margin: 15px 0;
+            padding: 18px;
+        }
+        
+        .play-button:hover:not(:disabled) {
+            box-shadow: 0 6px 20px rgba(33, 150, 243, 0.4);
+        }
+        
+        .stop-button {
+            background: linear-gradient(45deg, #f44336, #d32f2f);
+        }
+        
+        .stop-button:hover:not(:disabled) {
+            box-shadow: 0 6px 20px rgba(244, 67, 54, 0.4);
+        }
+        
+        button.loading {
+            color: transparent;
+        }
+        
+        button.loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 18px;
+            height: 18px;
+            margin: -9px 0 0 -9px;
+            border: 2px solid transparent;
+            border-top: 2px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        #status {
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            border-left: 4px solid #4CAF50;
+            font-size: 14px;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+        
+        .value-display {
+            color: #4CAF50;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        
+        .error {
+            color: #ff6b6b;
+            border-left-color: #ff6b6b;
+        }
+        
+        .success {
+            color: #4CAF50;
+            border-left-color: #4CAF50;
+        }
+        
+        .warning {
+            color: #ffa726;
+            border-left-color: #ffa726;
+        }
+        
+        .info {
+            color: #42a5f5;
+            border-left-color: #42a5f5;
+        }
+        
+        .audio-visualizer {
+            width: 100%;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            margin: 15px 0;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid rgba(76, 175, 80, 0.3);
+        }
+        
+        .audio-bar {
+            width: 3px;
+            background: linear-gradient(to top, #4CAF50, #81C784, #A5D6A7);
+            position: absolute;
+            bottom: 0;
+            border-radius: 2px 2px 0 0;
+            transition: height 0.1s ease;
+            margin-right: 1px;
+        }
+        
+        .lip-sync-meter {
+            width: 100%;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            margin: 10px 0;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid #2196F3;
+        }
+        
+        .lip-sync-fill {
+            height: 100%;
+            background: linear-gradient(to right, #2196F3, #21CBF3, #4FC3F7);
+            transition: width 0.1s ease;
+            width: 0%;
+            position: relative;
+        }
+        
+        .lip-sync-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-weight: bold;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+            z-index: 10;
+        }
+        
+        .demo-audio-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .demo-button {
+            background: linear-gradient(45deg, #9C27B0, #7B1FA2);
+            padding: 12px 16px;
+            font-size: 13px;
+            min-width: auto;
+        }
+        
+        .demo-button:hover:not(:disabled) {
+            box-shadow: 0 4px 15px rgba(156, 39, 176, 0.4);
+        }
+        
+        .file-drop-zone {
+            border: 2px dashed rgba(76, 175, 80, 0.5);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.05);
+            transition: all 0.3s ease;
+            margin: 10px 0;
+        }
+        
+        .file-drop-zone.dragover {
+            border-color: #4CAF50;
+            background: rgba(76, 175, 80, 0.1);
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #45a049);
+            transition: width 0.3s ease;
+            border-radius: 3px;
+            width: 0%;
+        }
+        
+        .instructions {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            font-size: 13px;
+            color: #ccc;
+        }
+        
+        .instructions h4 {
+            margin: 0 0 10px 0;
+            color: #4CAF50;
+            font-size: 14px;
+        }
+        
+        .instructions p {
+            margin: 6px 0;
+            line-height: 1.4;
+        }
+        
+        @media (max-width: 768px) {
+            #controls {
+                max-width: calc(100vw - 40px);
+                font-size: 14px;
+            }
+            
+            .demo-audio-buttons {
+                grid-template-columns: 1fr;
+            }
+            
+            .instructions {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="controls">
+            <h3>🎵 Audio-to-Lip-Sync Demo</h3>
+            
+            <div class="control-group">
+                <label>📁 Upload Audio File:</label>
+                <div class="file-drop-zone" id="dropZone">
+                    <p>📎 Drag & drop audio file here or click to browse</p>
+                    <input type="file" id="audioUpload" accept="audio/*" style="display: none;">
+                </div>
+                <small style="color: #999; font-size: 12px;">
+                    Supported: MP3, WAV, M4A, OGG
+                </small>
+            </div>
+            
+            <div class="control-group">
+                <label>🎮 Playback Controls:</label>
+                <button class="play-button" onclick="app.playAudio()" id="playButton">
+                    ▶️ Play Audio & Start Lip-Sync
+                </button>
+                <div style="display: flex; gap: 10px;">
+                    <button class="stop-button" onclick="app.stopAudio()">⏹️ Stop</button>
+                    <button onclick="app.pauseAudio()" id="pauseButton">⏸️ Pause</button>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <label>🔊 Audio Visualization:</label>
+                <div class="audio-visualizer" id="audioVisualizer"></div>
+            </div>
+            
+            <div class="control-group">
+                <label>👄 Lip-Sync Intensity: <span class="value-display" id="lipSyncValue">0%</span></label>
+                <div class="lip-sync-meter">
+                    <div class="lip-sync-fill" id="lipSyncFill"></div>
+                    <div class="lip-sync-text" id="lipSyncText">Ready</div>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <label for="sensitivity">🎚️ Sensitivity: <span class="value-display" id="sensValue">2.0</span></label>
+                <input type="range" id="sensitivity" min="0.5" max="5" step="0.1" value="2.0">
+            </div>
+            
+            <div class="control-group">
+                <label>🎵 Try Demo Audio Files:</label>
+                <div class="demo-audio-buttons">
+                    <button class="demo-button" onclick="app.loadDemoAudio('speech')">🗣️ Speech</button>
+                    <button class="demo-button" onclick="app.loadDemoAudio('song')">🎵 Song</button>
+                    <button class="demo-button" onclick="app.loadDemoAudio('whisper')">🤫 Whisper</button>
+                    <button class="demo-button" onclick="app.loadDemoAudio('laugh')">😄 Laugh</button>
+                </div>
+            </div>
+            
+            <div class="progress-bar" id="progressContainer" style="display: none;">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            
+            <div id="status" class="info">
+                Status: Loading Ready Player Me avatar...
+            </div>
+            
+            <div class="instructions">
+                <h4>🚀 How to Use:</h4>
+                <p>1. Wait for avatar to load completely</p>
+                <p>2. Upload any audio file or try demo sounds</p>
+                <p>3. Click "Play Audio & Start Lip-Sync"</p>
+                <p>4. Watch real-time mouth animation!</p>
+                <p>5. Adjust sensitivity for better sync</p>
+            </div>
+        </div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+        class AudioLipSyncDemo {
+            constructor() {
+                // Three.js core
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.avatar = null;
+                this.head = null;
+                this.morphTargets = null;
+                
+                // Audio system
+                this.audioContext = null;
+                this.analyser = null;
+                this.dataArray = null;
+                this.audioElement = null;
+                this.audioSource = null;
+                
+                // State
+                this.isPlaying = false;
+                this.isPaused = false;
+                this.sensitivity = 2.0;
+                this.animationId = null;
+                
+                // UI elements
+                this.elements = {};
+                this.audioVisualizerBars = [];
+                
+                // Morph target mapping
+                this.primaryMouthTarget = null;
+                this.workingTargets = [];
+                
+                // Performance
+                this.lastLipSyncValue = 0;
+                this.frameCount = 0;
+                
+                this.init();
+            }
+
+            async init() {
+                try {
+                    this.cacheElements();
+                    await this.setupScene();
+                    this.setupEventListeners();
+                    this.setupAudioVisualizer();
+                    this.setupCameraControls();
+                    this.animate();
+                    
+                    await this.loadAvatar();
+                    
+                } catch (error) {
+                    console.error('Initialization error:', error);
+                    this.updateStatus('❌ Failed to initialize: ' + error.message, 'error');
+                }
+            }
+
+            cacheElements() {
+                const elementIds = [
+                    'container', 'controls', 'audioUpload', 'dropZone', 'playButton', 
+                    'pauseButton', 'sensitivity', 'sensValue', 'lipSyncFill', 
+                    'lipSyncText', 'lipSyncValue', 'audioVisualizer', 'status',
+                    'progressContainer', 'progressFill'
+                ];
+                
+                elementIds.forEach(id => {
+                    this.elements[id] = document.getElementById(id);
+                });
+            }
+
+            async setupScene() {
+                // Scene
+                this.scene = new THREE.Scene();
+                this.camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+                
+                this.renderer = new THREE.WebGLRenderer({ 
+                    antialias: true,
+                    alpha: true,
+                    powerPreference: 'high-performance'
+                });
+                
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setClearColor(0x1a1a2e);
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+                this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+                this.renderer.toneMappingExposure = 1.0;
+                
+                this.elements.container.appendChild(this.renderer.domElement);
+
+                // Lighting optimized for facial features
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+                this.scene.add(ambientLight);
+                
+                const keyLight = new THREE.DirectionalLight(0xffffff, 1.0);
+                keyLight.position.set(2, 2, 3);
+                keyLight.castShadow = true;
+                keyLight.shadow.mapSize.width = 1024;
+                keyLight.shadow.mapSize.height = 1024;
+                this.scene.add(keyLight);
+
+                const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
+                fillLight.position.set(-2, 1, 2);
+                this.scene.add(fillLight);
+                
+                // Position camera for optimal lip-sync viewing
+                this.camera.position.set(0, 1.6, 1.8);
+                this.camera.lookAt(0, 1.6, 0);
+            }
+
+            setupEventListeners() {
+                // Sensitivity control
+                this.elements.sensitivity.addEventListener('input', (e) => {
+                    this.sensitivity = parseFloat(e.target.value);
+                    this.elements.sensValue.textContent = this.sensitivity.toFixed(1);
+                });
+                
+                // File upload
+                this.elements.audioUpload.addEventListener('change', (e) => this.handleAudioUpload(e));
+                
+                // Drag & drop
+                const dropZone = this.elements.dropZone;
+                dropZone.addEventListener('click', () => this.elements.audioUpload.click());
+                dropZone.addEventListener('dragover', this.handleDragOver.bind(this));
+                dropZone.addEventListener('drop', this.handleDrop.bind(this));
+                dropZone.addEventListener('dragenter', () => dropZone.classList.add('dragover'));
+                dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+                
+                // Window events
+                window.addEventListener('resize', () => this.handleResize());
+                window.addEventListener('beforeunload', () => this.cleanup());
+                
+                // Keyboard shortcuts
+                document.addEventListener('keydown', (e) => {
+                    if (e.target.tagName === 'INPUT') return;
+                    
+                    switch(e.key.toLowerCase()) {
+                        case ' ':
+                            e.preventDefault();
+                            if (this.isPlaying) {
+                                this.pauseAudio();
+                            } else {
+                                this.playAudio();
+                            }
+                            break;
+                        case 'escape':
+                            e.preventDefault();
+                            this.stopAudio();
+                            break;
+                    }
+                });
+            }
+
+            setupAudioVisualizer() {
+                const visualizer = this.elements.audioVisualizer;
+                const barCount = 32;
+                const barWidth = (visualizer.clientWidth / barCount) - 1;
+                
+                for (let i = 0; i < barCount; i++) {
+                    const bar = document.createElement('div');
+                    bar.className = 'audio-bar';
+                    bar.style.left = `${i * (barWidth + 1)}px`;
+                    bar.style.width = `${barWidth}px`;
+                    bar.style.height = '2px';
+                    visualizer.appendChild(bar);
+                    this.audioVisualizerBars.push(bar);
+                }
+            }
+
+            setupCameraControls() {
+                const container = this.elements.container;
+                let mouseState = { x: 0, y: 0, isDown: false };
+                let cameraRotation = { x: 0, y: 0 };
+                const cameraDistance = 1.8;
+                
+                const updateCameraPosition = () => {
+                    const x = cameraDistance * Math.sin(cameraRotation.y) * Math.cos(cameraRotation.x);
+                    const y = 1.6 + cameraDistance * Math.sin(cameraRotation.x);
+                    const z = cameraDistance * Math.cos(cameraRotation.y) * Math.cos(cameraRotation.x);
+                    
+                    this.camera.position.set(x, y, z);
+                    this.camera.lookAt(0, 1.6, 0);
+                };
+                
+                container.addEventListener('mousedown', (e) => {
+                    if (!this.elements.controls.contains(e.target)) {
+                        mouseState.isDown = true;
+                        mouseState.x = e.clientX;
+                        mouseState.y = e.clientY;
+                        e.preventDefault();
+                    }
+                });
+                
+                container.addEventListener('mousemove', (e) => {
+                    if (!mouseState.isDown) return;
+                    
+                    const deltaX = e.clientX - mouseState.x;
+                    const deltaY = e.clientY - mouseState.y;
+                    
+                    cameraRotation.y -= deltaX * 0.01;
+                    cameraRotation.x -= deltaY * 0.01;
+                    cameraRotation.x = Math.max(-Math.PI / 4, Math.min(Math.PI / 4, cameraRotation.x));
+                    
+                    updateCameraPosition();
+                    
+                    mouseState.x = e.clientX;
+                    mouseState.y = e.clientY;
+                });
+                
+                container.addEventListener('mouseup', () => {
+                    mouseState.isDown = false;
+                });
+            }
+
+            async loadAvatar() {
+                this.setLoadingState(true);
+                this.updateStatus('Loading Ready Player Me avatar with morph targets...', 'info');
+                this.showProgress(true);
+                
+                try {
+                    const loader = new GLTFLoader();
+                    
+                    // Avatar with ALL morph targets for comprehensive lip-sync
+                    const avatarUrl = 'https://models.readyplayer.me/664777277ad2faec5b6079f0.glb?morphTargets=ARKit,Oculus+Visemes,mouthOpen,mouthSmile,eyesClosed,eyesLookUp,eyesLookDown&textureSizeLimit=1024';
+                    
+                    const gltf = await new Promise((resolve, reject) => {
+                        loader.load(avatarUrl, resolve, 
+                            (progress) => {
+                                if (progress.total > 0) {
+                                    const percent = (progress.loaded / progress.total) * 100;
+                                    this.updateProgress(percent);
+                                    this.updateStatus(`Loading avatar... ${Math.round(percent)}%`, 'info');
+                                }
+                            }, reject);
+                    });
+                    
+                    this.avatar = gltf.scene;
+                    this.scene.add(this.avatar);
+                    
+                    this.avatar.scale.set(1, 1, 1);
+                    this.avatar.position.set(0, 0, 0);
+                    
+                    this.findAndMapMorphTargets();
+                    
+                    if (this.workingTargets.length > 0) {
+                        this.updateStatus(`✅ Avatar ready! Found ${this.workingTargets.length} morph targets for lip-sync`, 'success');
+                    } else {
+                        this.updateStatus('⚠️ Avatar loaded but no morph targets found', 'warning');
+                    }
+                    
+                } catch (error) {
+                    console.error('Avatar loading error:', error);
+                    this.updateStatus('❌ Failed to load avatar: ' + error.message, 'error');
+                } finally {
+                    this.setLoadingState(false);
+                    this.showProgress(false);
+                }
+            }
+
+            findAndMapMorphTargets() {
+                let bestMesh = null;
+                let bestScore = 0;
+                
+                this.avatar.traverse((child) => {
+                    if (child.isMesh && child.morphTargetDictionary) {
+                        const morphNames = Object.keys(child.morphTargetDictionary);
+                        let score = morphNames.length;
+                        
+                        // Prefer head/face meshes
+                        if (child.name.toLowerCase().includes('head') || 
+                            child.name.toLowerCase().includes('face') ||
+                            child.name.includes('Wolf3D_Head')) {
+                            score += 100;
+                        }
+                        
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestMesh = child;
+                        }
+                    }
+                });
+                
+                if (bestMesh) {
+                    this.head = bestMesh;
+                    this.morphTargets = bestMesh.morphTargetDictionary;
+                    this.mapMorphTargets();
+                }
+            }
+
+            mapMorphTargets() {
+                const allTargets = Object.keys(this.morphTargets);
+                this.workingTargets = [];
+                
+                // Priority list for mouth targets
+                const mouthTargetPriority = [
+                    'mouthOpen', 'mouth_open', 'MouthOpen',
+                    'jawOpen', 'jaw_open', 'JawOpen',
+                    'viseme_aa', 'viseme_E', 'viseme_I', 'viseme_O', 'viseme_U',
+                    'mouthFunnel', 'mouthPucker', 'mouthSmile'
+                ];
+                
+                // Find primary mouth target
+                for (const targetName of mouthTargetPriority) {
+                    if (this.morphTargets[targetName] !== undefined) {
+                        this.primaryMouthTarget = {
+                            name: targetName,
+                            index: this.morphTargets[targetName]
+                        };
+                        break;
+                    }
+                }
+                
+                // Map all mouth-related targets
+                allTargets.forEach(name => {
+                    const lowerName = name.toLowerCase();
+                    if (lowerName.includes('mouth') || lowerName.includes('jaw') || 
+                        lowerName.includes('lip') || lowerName.includes('viseme')) {
+                        this.workingTargets.push({
+                            name: name,
+                            index: this.morphTargets[name]
+                        });
+                    }
+                });
+            }
+
+            handleDragOver(event) {
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'copy';
+            }
+
+            handleDrop(event) {
+                event.preventDefault();
+                this.elements.dropZone.classList.remove('dragover');
+                
+                const files = event.dataTransfer.files;
+                if (files.length > 0) {
+                    const file = files[0];
+                    if (this.isValidAudioFile(file)) {
+                        this.processAudioFile(file);
+                    } else {
+                        this.updateStatus('❌ Invalid audio file format', 'error');
+                    }
+                }
+            }
+
+            async handleAudioUpload(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                if (!this.isValidAudioFile(file)) {
+                    this.updateStatus('❌ Unsupported audio format', 'error');
+                    return;
+                }
+                
+                await this.processAudioFile(file);
+            }
+
+            isValidAudioFile(file) {
+                const validTypes = ['audio/mp3', 'audio/wav', 'audio/m4a', 'audio/ogg', 'audio/mpeg'];
+                return validTypes.some(type => file.type.includes(type.split('/')[1]));
+            }
+
+            async processAudioFile(file) {
+                try {
+                    this.setLoadingState(true);
+                    this.updateStatus('🎵 Processing audio file...', 'info');
+                    
+                    if (this.audioElement) {
+                        this.audioElement.pause();
+                        this.audioElement = null;
+                    }
+                    
+                    const url = URL.createObjectURL(file);
+                    this.audioElement = new Audio(url);
+                    this.audioElement.crossOrigin = 'anonymous';
+                    this.audioElement.preload = 'auto';
+                    
+                    await new Promise((resolve, reject) => {
+                        this.audioElement.onloadeddata = resolve;
+                        this.audioElement.onerror = reject;
+                        setTimeout(() => reject(new Error('Audio loading timeout')), 10000);
+                    });
+                    
+                    await this.setupAudioContext();
+                    this.updateStatus(`✅ Audio ready: ${file.name} (${Math.round(this.audioElement.duration)}s)`, 'success');
+                    
+                } catch (error) {
+                    console.error('Audio processing error:', error);
+                    this.updateStatus('❌ Failed to process audio: ' + error.message, 'error');
+                } finally {
+                    this.setLoadingState(false);
+                }
+            }
+
+            async setupAudioContext() {
+                try {
+                    if (this.audioContext) {
+                        this.audioContext.close();
+                    }
+                    
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    
+                    if (this.audioContext.state === 'suspended') {
+                        await this.audioContext.resume();
+                    }
+                    
+                    this.analyser = this.audioContext.createAnalyser();
+                    this.analyser.fftSize = 1024;
+                    this.analyser.smoothingTimeConstant = 0.3;
+                    
+                    this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+                    
+                    this.audioSource = this.audioContext.createMediaElementSource(this.audioElement);
+                    this.audioSource.connect(this.analyser);
+                    this.analyser.connect(this.audioContext.destination);
+                    
+                } catch (error) {
+                    console.error('Audio context setup error:', error);
+                    throw new Error('Failed to setup audio context');
+                }
+            }
+
+            async playAudio() {
+                if (!this.audioElement) {
+                    this.updateStatus('⚠️ Please upload an audio file first', 'warning');
+                    return;
+                }
+                
+                if (!this.head || this.workingTargets.length === 0) {
+                    this.updateStatus('⚠️ Avatar not ready for lip-sync', 'warning');
+                    return;
+                }
+                
+                try {
+                    if (this.isPaused) {
+                        await this.audioElement.play();
+                        this.isPaused = false;
+                    } else {
+                        this.audioElement.currentTime = 0;
+                        await this.audioElement.play();
+                    }
+                    
+                    this.isPlaying = true;
+                    this.startLipSync();
+                    
+                    this.elements.playButton.textContent = '🔄 Playing...';
+                    this.elements.pauseButton.disabled = false;
+                    
+                    this.updateStatus('🎵 Playing audio with real-time lip-sync!', 'success');
+                    
+                    this.audioElement.onended = () => {
+                        this.stopAudio();
+                    };
+                    
+                } catch (error) {
+                    console.error('Play error:', error);
+                    this.updateStatus('❌ Failed to play audio: ' + error.message, 'error');
+                }
+            }
+
+            pauseAudio() {
+                if (!this.audioElement || !this.isPlaying) return;
+                
+                this.audioElement.pause();
+                this.isPlaying = false;
+                this.isPaused = true;
+                this.stopLipSync();
+                
+                this.elements.playButton.textContent = '▶️ Resume';
+                this.updateStatus('⏸️ Audio paused', 'info');
+            }
+
+            stopAudio() {
+                if (this.audioElement) {
+                    this.audioElement.pause();
+                    this.audioElement.currentTime = 0;
+                }
+                
+                this.isPlaying = false;
+                this.isPaused = false;
+                this.stopLipSync();
+                this.resetMouthShape();
+                this.clearVisualization();
+                
+                this.elements.playButton.textContent = '▶️ Play Audio & Start Lip-Sync';
+                this.elements.pauseButton.disabled = true;
+                
+                this.updateStatus('⏹️ Audio stopped', 'info');
+            }
+
+            startLipSync() {
+                this.stopLipSync();
+                
+                const updateLipSync = () => {
+                    if (!this.isPlaying) {
+                        this.animationId = null;
+                        return;
+                    }
+                    
+                    this.frameCount++;
+                    
+                    if (this.analyser && this.dataArray) {
+                        this.analyser.getByteFrequencyData(this.dataArray);
+                        
+                        // Calculate volume with speech frequency weighting
+                        let weightedVolume = 0;
+                        let totalWeight = 0;
+                        
+                        for (let i = 0; i < this.dataArray.length; i++) {
+                            const frequency = i * (this.audioContext.sampleRate / 2) / this.dataArray.length;
+                            let weight = 1;
+                            
+                            // Weight human speech frequencies (85Hz - 2000Hz)
+                            if (frequency >= 85 && frequency <= 300) {
+                                weight = 3; // Fundamental frequency
+                            } else if (frequency >= 300 && frequency <= 2000) {
+                                weight = 2; // Formant range
+                            } else if (frequency >= 2000 && frequency <= 4000) {
+                                weight = 1.5; // Consonants
+                            } else {
+                                weight = 0.5;
+                            }
+                            
+                            weightedVolume += this.dataArray[i] * weight;
+                            totalWeight += weight;
+                        }
+                        
+                        let volume = (weightedVolume / totalWeight) / 255;
+                        volume = Math.min(volume * this.sensitivity, 1);
+                        
+                        // Smooth the animation
+                        volume = this.lastLipSyncValue + (volume - this.lastLipSyncValue) * 0.3;
+                        this.lastLipSyncValue = volume;
+                        
+                        // Apply to avatar
+                        this.applyLipSync(volume);
+                        
+                        // Update UI
+                        this.updateVisualization(volume);
+                    }
+                    
+                    this.animationId = requestAnimationFrame(updateLipSync);
+                };
+                
+                updateLipSync();
+            }
+
+            stopLipSync() {
+                if (this.animationId) {
+                    cancelAnimationFrame(this.animationId);
+                    this.animationId = null;
+                }
+            }
+
+            applyLipSync(volume) {
+                if (!this.head || !this.head.morphTargetInfluences) return;
+                
+                // Reset all morph targets
+                for (let i = 0; i < this.head.morphTargetInfluences.length; i++) {
+                    this.head.morphTargetInfluences[i] = 0;
+                }
+                
+                // Apply to primary mouth target
+                if (this.primaryMouthTarget) {
+                    this.head.morphTargetInfluences[this.primaryMouthTarget.index] = volume;
+                }
+            }
+
+            updateVisualization(lipSyncValue) {
+                // Update lip-sync meter
+                const percentage = Math.round(lipSyncValue * 100);
+                this.elements.lipSyncFill.style.width = `${percentage}%`;
+                this.elements.lipSyncText.textContent = `${percentage}%`;
+                this.elements.lipSyncValue.textContent = `${percentage}%`;
+                
+                // Update audio visualizer
+                if (this.dataArray && this.audioVisualizerBars.length > 0) {
+                    const barCount = this.audioVisualizerBars.length;
+                    const dataSlice = Math.floor(this.dataArray.length / barCount);
+                    
+                    for (let i = 0; i < barCount; i++) {
+                        let sum = 0;
+                        for (let j = 0; j < dataSlice; j++) {
+                            sum += this.dataArray[i * dataSlice + j];
+                        }
+                        const average = sum / dataSlice;
+                        const height = (average / 255) * 100;
+                        
+                        this.audioVisualizerBars[i].style.height = `${Math.max(2, height)}%`;
+                    }
+                }
+            }
+
+            resetMouthShape() {
+                if (!this.head || !this.head.morphTargetInfluences) return;
+                
+                for (let i = 0; i < this.head.morphTargetInfluences.length; i++) {
+                    this.head.morphTargetInfluences[i] = 0;
+                }
+                
+                this.lastLipSyncValue = 0;
+            }
+
+            clearVisualization() {
+                this.elements.lipSyncFill.style.width = '0%';
+                this.elements.lipSyncText.textContent = 'Ready';
+                this.elements.lipSyncValue.textContent = '0%';
+                
+                this.audioVisualizerBars.forEach(bar => {
+                    bar.style.height = '2px';
+                });
+            }
+
+            // Demo audio loading (placeholder - would need actual audio URLs)
+            async loadDemoAudio(type) {
+                // In a real implementation, you would have demo audio files
+                const demoMessages = {
+                    speech: 'Demo speech audio would load here',
+                    song: 'Demo song audio would load here',
+                    whisper: 'Demo whisper audio would load here',
+                    laugh: 'Demo laugh audio would load here'
+                };
+                
+                this.updateStatus(`🎵 ${demoMessages[type]}. Upload your own audio to test!`, 'info');
+            }
+
+            setLoadingState(loading) {
+                const buttons = ['playButton', 'pauseButton'];
+                buttons.forEach(id => {
+                    const button = this.elements[id];
+                    if (button) {
+                        button.disabled = loading;
+                        if (loading) {
+                            button.classList.add('loading');
+                        } else {
+                            button.classList.remove('loading');
+                        }
+                    }
+                });
+            }
+
+            showProgress(show) {
+                this.elements.progressContainer.style.display = show ? 'block' : 'none';
+            }
+
+            updateProgress(percent) {
+                this.elements.progressFill.style.width = `${Math.min(100, Math.max(0, percent))}%`;
+            }
+
+            updateStatus(message, type = 'info') {
+                this.elements.status.textContent = message;
+                this.elements.status.className = type;
+            }
+
+            handleResize() {
+                if (this.camera && this.renderer) {
+                    this.camera.aspect = window.innerWidth / window.innerHeight;
+                    this.camera.updateProjectionMatrix();
+                    this.renderer.setSize(window.innerWidth, window.innerHeight);
+                }
+            }
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                
+                if (this.renderer && this.scene && this.camera) {
+                    this.renderer.render(this.scene, this.camera);
+                }
+            }
+
+            cleanup() {
+                this.stopLipSync();
+                
+                if (this.audioContext) {
+                    this.audioContext.close();
+                }
+                
+                if (this.audioElement) {
+                    this.audioElement.pause();
+                }
+                
+                if (this.avatar) {
+                    this.scene.remove(this.avatar);
+                }
+                
+                if (this.renderer) {
+                    this.renderer.dispose();
+                }
+            }
+        }
+
+        // Initialize the demo
+        const app = new AudioLipSyncDemo();
+        
+        // Make it globally accessible
+        window.app = app;
+        
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            app.cleanup();
+        });
+        
+        console.log('🎵 Audio-to-Lip-Sync Demo loaded!');
+        console.log('Features: Real-time audio analysis, morph target lip-sync, drag & drop upload');
+    </script>
+</body>
+</html>
