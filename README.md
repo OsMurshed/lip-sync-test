@@ -1,4 +1,4 @@
-# My HTML Projects
+# Audio-to-Lip-Sync for Ready player me
 
 ## Comparison: Lip-Sync & Facial Animation Solutions
 Comprehensive Comparison Matrix - Based on Ready Player Me ecosystem research and latest developments
